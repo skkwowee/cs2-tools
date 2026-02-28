@@ -26,6 +26,7 @@ import time
 from pathlib import Path
 
 from cs2_tools.netcon import CS2Netcon
+from cs2_tools.sendkeys import CS2SendKeys
 
 # Default timing (seconds). Conservative -- decrease after testing.
 SEEK_SETTLE = 1.0   # wait after demo_gototick for world to render
@@ -37,9 +38,24 @@ SETUP_COMMANDS = [
     "spec_mode 4",           # first-person spectator
     "spec_autodirector 0",   # disable auto-director
     "cl_drawhud 1",          # ensure HUD visible
-    "jpeg_quality 95",       # high quality screenshots
-    "hud_scaling 1",         # full size HUD
+    "spec_show_xray 0",     # hide enemy x-ray/wallhack outlines
+    "bind F9 hideconsole",  # ensure console closed before screenshots
 ]
+
+
+def _find_steam_screenshot_dir() -> Path | None:
+    """Auto-detect Steam F12 screenshot directory for CS2 (app 730)."""
+    steam_base = Path("/mnt/c/Program Files (x86)/Steam/userdata")
+    if not steam_base.exists():
+        return None
+    # Find user directories containing CS2 screenshots
+    for user_dir in steam_base.iterdir():
+        if not user_dir.is_dir() or user_dir.name.startswith("."):
+            continue
+        ss_dir = user_dir / "760" / "remote" / "730" / "screenshots"
+        if ss_dir.exists():
+            return ss_dir
+    return None
 
 
 def find_screenshots(cs2_dir: Path, screenshot_id: str) -> list[Path]:
@@ -53,12 +69,32 @@ def find_screenshots(cs2_dir: Path, screenshot_id: str) -> list[Path]:
     return matches
 
 
+def find_newest_screenshot(ss_dir: Path, after_time: float) -> Path | None:
+    """Find the newest screenshot created after a given timestamp.
+
+    Used with Steam F12 screenshots which have timestamped names.
+    Ignores the thumbnails/ subdirectory.
+    """
+    newest = None
+    newest_mtime = after_time
+    for f in ss_dir.glob("*.jpg"):
+        if f.parent.name == "thumbnails":
+            continue
+        mtime = f.stat().st_mtime
+        if mtime > newest_mtime:
+            newest = f
+            newest_mtime = mtime
+    return newest
+
+
 def capture_plan(
     plan_path: Path,
     demo_dir: str,
     netcon_port: int,
     cs2_screenshot_dir: Path,
     output_dir: Path,
+    netcon_host: str = "127.0.0.1",
+    use_sendkeys: bool = False,
     resume: bool = False,
     limit: int = 0,
     seek_settle: float = SEEK_SETTLE,
@@ -103,7 +139,10 @@ def capture_plan(
     print(f"Estimated time: {est_minutes:.0f} minutes")
     print()
 
-    con = CS2Netcon(port=netcon_port)
+    if use_sendkeys:
+        con = CS2SendKeys()
+    else:
+        con = CS2Netcon(host=netcon_host, port=netcon_port)
     con.connect()
 
     # Setup CS2 for spectating
@@ -137,14 +176,30 @@ def capture_plan(
             con.spec_player(player, settle=pov_settle)
 
             # Capture
+            before_ss = time.time()
             con.screenshot(ss_id, settle=jpeg_settle)
 
             # Move screenshot from CS2 dir to output
-            matches = find_screenshots(cs2_screenshot_dir, ss_id)
-            if matches:
-                src = matches[0]
+            if use_sendkeys:
+                # Steam F12 screenshots have timestamped names.
+                # Retry a few times since Steam may take a moment to write the file.
+                src = None
+                for _retry in range(5):
+                    src = find_newest_screenshot(cs2_screenshot_dir, before_ss)
+                    if src:
+                        break
+                    time.sleep(0.5)
+            else:
+                matches = find_screenshots(cs2_screenshot_dir, ss_id)
+                src = matches[0] if matches else None
+
+            if src:
                 dst = raw_dir / f"{ss_id}.jpg"
-                shutil.move(str(src), str(dst))
+                shutil.copy2(str(src), str(dst))
+                try:
+                    src.unlink()
+                except PermissionError:
+                    pass  # Windows filesystem may deny deletion from WSL
                 captured += 1
             else:
                 failed += 1
@@ -180,17 +235,27 @@ def main():
              "If empty, uses just the filename (CS2 searches its default paths).",
     )
     parser.add_argument(
+        "--host", default="127.0.0.1",
+        help="CS2 netcon host (default: 127.0.0.1)",
+    )
+    parser.add_argument(
         "--port", type=int, default=2121,
         help="CS2 netcon port (default: 2121)",
     )
     parser.add_argument(
         "--cs2-screenshot-dir",
-        default=r"/mnt/c/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/screenshots",
-        help="Path to CS2's screenshot output directory (WSL path)",
+        default=None,
+        help="Path to CS2's screenshot output directory (WSL path). "
+             "Auto-detected for --sendkeys (Steam F12 screenshots).",
     )
     parser.add_argument(
         "--output", "-o", default=None,
         help="Output directory (default: same as capture plan directory)",
+    )
+    parser.add_argument(
+        "--sendkeys", action="store_true",
+        help="Use SendKeys instead of netcon TCP (no -netconport needed). "
+             "Requires CS2 in windowed/borderless mode with -console.",
     )
     parser.add_argument(
         "--resume", action="store_true",
@@ -221,7 +286,23 @@ def main():
         sys.exit(1)
 
     output_dir = Path(args.output) if args.output else plan_path.parent
-    cs2_ss_dir = Path(args.cs2_screenshot_dir)
+
+    # Resolve screenshot directory
+    if args.cs2_screenshot_dir:
+        cs2_ss_dir = Path(args.cs2_screenshot_dir)
+    elif args.sendkeys:
+        # Auto-detect Steam F12 screenshot dir
+        cs2_ss_dir = _find_steam_screenshot_dir()
+        if not cs2_ss_dir:
+            print("Error: Could not auto-detect Steam screenshot directory.")
+            print("Pass --cs2-screenshot-dir manually.")
+            sys.exit(1)
+        print(f"Steam screenshots: {cs2_ss_dir}")
+    else:
+        cs2_ss_dir = Path(
+            r"/mnt/c/Program Files (x86)/Steam/steamapps/common/"
+            r"Counter-Strike Global Offensive/game/csgo/screenshots"
+        )
 
     capture_plan(
         plan_path=plan_path,
@@ -229,6 +310,8 @@ def main():
         netcon_port=args.port,
         cs2_screenshot_dir=cs2_ss_dir,
         output_dir=output_dir,
+        netcon_host=args.host,
+        use_sendkeys=args.sendkeys,
         resume=args.resume,
         limit=args.limit,
         seek_settle=args.seek_settle,
