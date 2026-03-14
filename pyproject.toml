@@ -18,12 +18,16 @@ parse = [
     "polars>=1.0.0",
     "pyarrow>=14.0.0",
 ]
+scrape = [
+    "curl_cffi>=0.7.0",
+]
 
 [project.scripts]
 cs2-parse-demos = "cs2_tools.parse_demos:main"
 cs2-export-viewer = "cs2_tools.export_viewer_data:main"
 cs2-plan-captures = "cs2_tools.plan_captures:main"
 cs2-capture = "cs2_tools.capture_screenshots:main"
+cs2-hltv = "cs2_tools.hltv:main"
 
 [tool.setuptools.packages.find]
 include = ["cs2_tools*"]
