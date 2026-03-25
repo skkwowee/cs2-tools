@@ -17,6 +17,7 @@ Usage:
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
 
 import polars as pl
@@ -77,12 +78,12 @@ def parse_demo_parquet(dem_path: Path, output_dir: Path, dry_run: bool) -> dict:
     damages_df = dem.damages
     shots_df = dem.shots
 
-    tick_count = ticks_df.shape[0] if ticks_df is not None else 0
-    round_count = rounds_df.shape[0] if rounds_df is not None else 0
-    kill_count = kills_df.shape[0] if kills_df is not None else 0
-    bomb_count = bomb_df.shape[0] if bomb_df is not None else 0
-    dmg_count = damages_df.shape[0] if damages_df is not None else 0
-    shot_count = shots_df.shape[0] if shots_df is not None else 0
+    tick_count = len(ticks_df) if ticks_df is not None else 0
+    round_count = len(rounds_df) if rounds_df is not None else 0
+    kill_count = len(kills_df) if kills_df is not None else 0
+    bomb_count = len(bomb_df) if bomb_df is not None else 0
+    dmg_count = len(damages_df) if damages_df is not None else 0
+    shot_count = len(shots_df) if shots_df is not None else 0
 
     stats = {
         "demo": dem_path.name,
@@ -499,7 +500,6 @@ def main():
             all_stats.append(stats)
         except Exception as e:
             print(f"  ERROR parsing {dem_path.name}: {e}")
-            import traceback
             traceback.print_exc()
 
     print(f"\n{'='*60}")

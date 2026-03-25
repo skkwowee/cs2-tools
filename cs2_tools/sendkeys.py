@@ -163,7 +163,8 @@ class CS2SendKeys:
                 self._proc.stdin.write("QUIT\n")
                 self._proc.stdin.flush()
                 self._proc.wait(timeout=5)
-            except Exception:
+            except Exception as e:
+                print(f"Error during disconnect: {e}")
                 self._proc.kill()
             self._proc = None
 
