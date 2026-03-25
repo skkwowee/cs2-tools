@@ -18,6 +18,7 @@ Usage:
 Requires CS2 launched with: -netconport 2121 -console
 """
 
+import contextlib
 import socket
 import time
 
@@ -39,10 +40,8 @@ class CS2Netcon:
                 self._sock.settimeout(self.timeout)
                 self._sock.connect((self.host, self.port))
                 # Drain any welcome banner
-                try:
+                with contextlib.suppress(TimeoutError):
                     self._sock.recv(4096)
-                except socket.timeout:
-                    pass
                 print(f"Connected to CS2 netcon at {self.host}:{self.port}")
                 return
             except (ConnectionRefusedError, OSError) as e:
@@ -72,7 +71,7 @@ class CS2Netcon:
         try:
             self._sock.sendall((command + "\n").encode("utf-8"))
         except (BrokenPipeError, ConnectionResetError):
-            print(f"Connection lost, reconnecting...")
+            print("Connection lost, reconnecting...")
             self.connect()
             self._sock.sendall((command + "\n").encode("utf-8"))
 

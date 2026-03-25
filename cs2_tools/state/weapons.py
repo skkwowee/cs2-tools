@@ -6,10 +6,10 @@ classes based on how they affect decision-making, not just price or category.
 See chimera decisions.md D023 for the design rationale.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class WeaponClass(str, Enum):
+class WeaponClass(StrEnum):
     RIFLE = "rifle"
     AWP = "awp"
     FORCE_RIFLE = "force_rifle"

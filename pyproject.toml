@@ -31,3 +31,15 @@ cs2-hltv = "cs2_tools.hltv:main"
 
 [tool.setuptools.packages.find]
 include = ["cs2_tools*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+  "E402",
+  "E741",
+  "UP007",
+]

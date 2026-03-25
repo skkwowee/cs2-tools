@@ -19,6 +19,7 @@ Usage:
 """
 
 import argparse
+import contextlib
 import json
 import shutil
 import sys
@@ -139,10 +140,7 @@ def capture_plan(
     print(f"Estimated time: {est_minutes:.0f} minutes")
     print()
 
-    if use_sendkeys:
-        con = CS2SendKeys()
-    else:
-        con = CS2Netcon(host=netcon_host, port=netcon_port)
+    con: CS2Netcon | CS2SendKeys = CS2SendKeys() if use_sendkeys else CS2Netcon(host=netcon_host, port=netcon_port)
     con.connect()
 
     # Setup CS2 for spectating
@@ -160,6 +158,7 @@ def capture_plan(
     current_tick = -1
     captured = 0
     failed = 0
+    i = 0
 
     try:
         for i, cap in enumerate(captures):
@@ -196,10 +195,8 @@ def capture_plan(
             if src:
                 dst = raw_dir / f"{ss_id}.jpg"
                 shutil.copy2(str(src), str(dst))
-                try:
-                    src.unlink()
-                except PermissionError:
-                    pass  # Windows filesystem may deny deletion from WSL
+                with contextlib.suppress(PermissionError):
+                    src.unlink()  # Windows filesystem may deny deletion from WSL
                 captured += 1
             else:
                 failed += 1
@@ -212,7 +209,7 @@ def capture_plan(
                       f"{captured} ok, {failed} failed")
 
     except KeyboardInterrupt:
-        print(f"\nInterrupted at capture {i+1}/{len(captures)}")
+        print(f"\nInterrupted at capture {i + 1}/{len(captures)}")
     finally:
         con.disconnect()
 

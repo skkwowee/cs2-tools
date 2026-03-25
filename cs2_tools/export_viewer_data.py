@@ -24,18 +24,19 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
 try:
-    from awpy.data.map_data import MAP_DATA
     from awpy.data import MAPS_DIR
+    from awpy.data.map_data import MAP_DATA  # noqa: F401
 except ImportError:
     print("awpy is required: pip install cs2-tools[parse]")
     sys.exit(1)
 
 
-def load_json(path: Path) -> list | dict:
+def load_json(path: Path) -> Any:
     return json.loads(path.read_text())
 
 
@@ -90,6 +91,7 @@ def export_demo(
 
     # --- Per-round JSON files ---
     round_count = 0
+    frames: list[dict[str, Any]] = []
     for round_info in rounds_data:
         round_num = round_info["round_num"]
         start_tick = round_info.get("start", 0)
@@ -117,7 +119,6 @@ def export_demo(
 
         # Build frames
         frames = []
-        sampled_set = set(sampled_ticks)
         sampled_df = round_ticks.filter(pl.col("tick").is_in(sampled_ticks))
 
         for tick_val, group in sampled_df.group_by("tick", maintain_order=True):
@@ -182,7 +183,7 @@ def copy_maps(maps_output_dir: Path) -> None:
     map_data_src = MAPS_DIR / "map-data.json"
     if map_data_src.exists():
         shutil.copy2(map_data_src, maps_output_dir / "map-data.json")
-        print(f"  Copied map-data.json")
+        print("  Copied map-data.json")
 
     # Copy only the maps we need (from our demos) + their lower variants
     needed_maps = set()

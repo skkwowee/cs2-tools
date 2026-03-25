@@ -11,8 +11,7 @@ from dataclasses import dataclass, field
 import polars as pl
 
 from cs2_tools.state.weapons import WeaponClass, classify_loadout
-from cs2_tools.state.zones import Zone, get_zone, get_cluster
-
+from cs2_tools.state.zones import get_zone
 
 # TTL thresholds for position recency (in seconds).
 # Tick rate is 64 Hz for CS2 demos parsed by awpy.
@@ -294,7 +293,7 @@ def extract_state(
     stale_enemies: dict[str, int] = {}
     stale_allies: dict[str, int] = {}
 
-    for name, (pos, _last_tick) in known_positions.items():
+    for _name, (pos, _last_tick) in known_positions.items():
         is_enemy = pos.side == enemy_side
         if pos.recency == "fresh":
             if is_enemy:

@@ -65,7 +65,7 @@ def parse_demo_parquet(dem_path: Path, output_dir: Path, dry_run: bool) -> dict:
     stem = dem_path.stem
     print(f"  Parsing {dem_path.name}...")
 
-    dem = Demo(str(dem_path))
+    dem = Demo(dem_path)
     dem.parse(player_props=PLAYER_PROPS)
 
     header = dem.header if isinstance(dem.header, dict) else {}
@@ -157,7 +157,6 @@ def parse_demo_parquet(dem_path: Path, output_dir: Path, dry_run: bool) -> dict:
 
     # --- Shots JSON ---
     if shots_df is not None and not shots_df.is_empty():
-        shot_cols = [c for c in shots_df.columns]
         shots_with_yaw = shots_df
         if ticks_df is not None and "yaw" in ticks_df.columns:
             yaw_key = "name" if "name" in ticks_df.columns else "steamid"
@@ -359,7 +358,7 @@ def get_bomb_plant_tick(round_info: dict) -> int | None:
 def parse_demo_snapshots(dem_path: Path, moments: set[str]) -> list[dict]:
     """Parse a single .dem file and extract snapshots (legacy mode)."""
     print(f"  Parsing {dem_path.name} (snapshot mode)...")
-    dem = Demo(str(dem_path))
+    dem = Demo(dem_path)
     dem.parse(player_props=PLAYER_PROPS)
 
     header = dem.header if isinstance(dem.header, dict) else {}

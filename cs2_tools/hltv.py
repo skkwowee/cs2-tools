@@ -151,7 +151,7 @@ def download_demo(match: Match, output_dir: Path) -> Path | None:
     # Determine filename from URL or content-disposition
     filename = None
     if "content-disposition" in r.headers:
-        cd = r.headers["content-disposition"]
+        cd = r.headers.get("content-disposition", "")
         fn_match = re.search(r'filename="?([^";\s]+)', cd)
         if fn_match:
             filename = fn_match.group(1)

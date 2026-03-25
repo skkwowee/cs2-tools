@@ -133,10 +133,7 @@ def select_pov_players(
     t_players = alive["t"]
     if t_players:
         carrier = get_bomb_carrier(ticks_df, tick, round_num)
-        if carrier and carrier in t_players:
-            t_pick = carrier
-        else:
-            t_pick = t_players[0]
+        t_pick = carrier if carrier and carrier in t_players else t_players[0]
         selections.append({"name": t_pick, "side": "t"})
 
     # CT-side: first alive

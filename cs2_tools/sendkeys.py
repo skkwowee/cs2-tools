@@ -15,7 +15,6 @@ import base64
 import subprocess
 import time
 
-
 # PowerShell script: long-running process that reads commands from stdin
 # and types them into CS2 via SendKeys + clipboard paste.
 _PS_SCRIPT = r'''
@@ -160,8 +159,9 @@ class CS2SendKeys:
         """Stop the PowerShell helper."""
         if self._proc:
             try:
-                self._proc.stdin.write("QUIT\n")
-                self._proc.stdin.flush()
+                if self._proc.stdin:
+                    self._proc.stdin.write("QUIT\n")
+                    self._proc.stdin.flush()
                 self._proc.wait(timeout=5)
             except Exception as e:
                 print(f"Error during disconnect: {e}")
@@ -226,6 +226,8 @@ class CS2SendKeys:
         """Send a line to the PowerShell helper and wait for response."""
         if not self._proc or self._proc.poll() is not None:
             raise ConnectionError("PowerShell helper not running. Call connect() first.")
+        assert self._proc.stdin is not None
+        assert self._proc.stdout is not None
         self._proc.stdin.write(line + "\n")
         self._proc.stdin.flush()
         response = self._proc.stdout.readline().strip()
